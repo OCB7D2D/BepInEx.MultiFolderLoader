@@ -53,7 +53,8 @@ namespace BepInEx.MultiFolderLoader
             var modsBaseDirFull = Path.GetFullPath(modDir.baseDir);
             if (!Directory.Exists(modsBaseDirFull))
             {
-                MultiFolderLoader.Logger.LogWarning("No mod folder found!");
+                MultiFolderLoader.Logger.LogInfo(
+                    $"Skipping missing mod folder {modsBaseDirFull}");
                 return;
             }
 
@@ -85,6 +86,18 @@ namespace BepInEx.MultiFolderLoader
         {
             try
             {
+
+                // Create Environment Variable to be used by doorstop_config.ini
+                // Will either be set to the default AppData folder or custom one
+                var args = Environment.GetCommandLineArgs();
+                for (var i = 0; i < args.Length; i++)
+                    if (args[i].ToLower().StartsWith("-userdatafolder="))
+                        Environment.SetEnvironmentVariable(
+                            "USERDATAFOLDER", args[i].Substring(16));
+                if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("USERDATAFOLDER")))
+                    Environment.SetEnvironmentVariable("USERDATAFOLDER", Path.Combine(Environment
+                        .GetFolderPath(Environment.SpecialFolder.ApplicationData), "7DaysToDie"));
+
                 var ini = GhettoIni.Read(Path.Combine(Paths.GameRootPath, CONFIG_NAME));
                 if (!ini.TryGetValue("MultiFolderLoader", out var mainSection))
                 {
@@ -128,17 +141,6 @@ namespace BepInEx.MultiFolderLoader
                 MultiFolderLoader.Logger.LogWarning(
                     $"No [{section.Name}].baseDir found in {CONFIG_NAME}, no mods to load!");
                 return;
-            }
-
-            var args = Environment.GetCommandLineArgs();
-            for (var i = 0; i < args.Length; i++)
-            {
-                if (args[i].ToLower().StartsWith("-userdatafolder="))
-                {
-                    var path = args[i].Substring(16);
-                    spec.baseDir = Path.GetFullPath(Path.Combine(path, "Mods"));
-                    MultiFolderLoader.Logger.LogInfo($"Custom Mod Folder {spec.baseDir}");
-                }
             }
 
             if (section.Entries.TryGetValue("disabledModsListPath", out var disabledModsListPath))
