@@ -53,7 +53,8 @@ namespace BepInEx.MultiFolderLoader
             var modsBaseDirFull = Path.GetFullPath(modDir.baseDir);
             if (!Directory.Exists(modsBaseDirFull))
             {
-                MultiFolderLoader.Logger.LogWarning("No mod folder found!");
+                MultiFolderLoader.Logger.LogInfo(
+                    $"Skipping missing mod folder {modsBaseDirFull}");
                 return;
             }
 
@@ -85,6 +86,18 @@ namespace BepInEx.MultiFolderLoader
         {
             try
             {
+
+                // Create Environment Variable to be used by doorstop_config.ini
+                // Will either be set to the default AppData folder or custom one
+                var args = Environment.GetCommandLineArgs();
+                for (var i = 0; i < args.Length; i++)
+                    if (args[i].ToLower().StartsWith("-userdatafolder="))
+                        Environment.SetEnvironmentVariable(
+                            "USERDATAFOLDER", args[i].Substring(16));
+                if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("USERDATAFOLDER")))
+                    Environment.SetEnvironmentVariable("USERDATAFOLDER", Path.Combine(Environment
+                        .GetFolderPath(Environment.SpecialFolder.ApplicationData), "7DaysToDie"));
+
                 var ini = GhettoIni.Read(Path.Combine(Paths.GameRootPath, CONFIG_NAME));
                 if (!ini.TryGetValue("MultiFolderLoader", out var mainSection))
                 {
@@ -200,14 +213,17 @@ namespace BepInEx.MultiFolderLoader
             var patchesExists = Directory.Exists(patchesDir);
             var pluginsExists = Directory.Exists(pluginsDir);
 
-            if (!patchesExists && !pluginsExists)
-                return;
-            Mods.Add(new Mod
+            // Support for (enabled) 7D2D mods
+            if (File.Exists(Path.Combine(dir, "ModInfo.xml")))
             {
-                PluginsPath = pluginsExists ? pluginsDir : null,
-                PreloaderPatchesPath = patchesExists ? patchesDir : null,
-                ModDir = dir
-            });
+                Mods.Add(new Mod
+                {
+                    PluginsPath = pluginsExists ? pluginsDir : null,
+                    PreloaderPatchesPath = patchesExists ? patchesDir : null,
+                    ModDir = dir
+                });
+            }
+
         }
     }
 }
