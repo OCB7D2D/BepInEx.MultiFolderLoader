@@ -130,6 +130,17 @@ namespace BepInEx.MultiFolderLoader
                 return;
             }
 
+            var args = Environment.GetCommandLineArgs();
+            for (var i = 0; i < args.Length; i++)
+            {
+                if (args[i].ToLower().StartsWith("-userdatafolder="))
+                {
+                    var path = args[i].Substring(16);
+                    spec.baseDir = Path.GetFullPath(Path.Combine(path, "Mods"));
+                    MultiFolderLoader.Logger.LogInfo($"Custom Mod Folder {spec.baseDir}");
+                }
+            }
+
             if (section.Entries.TryGetValue("disabledModsListPath", out var disabledModsListPath))
             {
                 MultiFolderLoader.Logger.LogInfo(
@@ -193,21 +204,36 @@ namespace BepInEx.MultiFolderLoader
 
         private static void AddMod(string dir)
         {
-            // TODO: Maybe add support for MonoModLoader as well?
-            var patchesDir = Path.Combine(dir, "patchers");
-            var pluginsDir = Path.Combine(dir, "plugins");
 
-            var patchesExists = Directory.Exists(patchesDir);
-            var pluginsExists = Directory.Exists(pluginsDir);
-
-            if (!patchesExists && !pluginsExists)
-                return;
-            Mods.Add(new Mod
+            // Support for 7D2D mods
+            if (File.Exists(Path.Combine(dir, "ModInfo.xml")))
             {
-                PluginsPath = pluginsExists ? pluginsDir : null,
-                PreloaderPatchesPath = patchesExists ? patchesDir : null,
-                ModDir = dir
-            });
+                Mods.Add(new Mod
+                {
+                    PluginsPath = dir,
+                    PreloaderPatchesPath = dir,
+                    ModDir = dir
+                });
+            }
+            else
+            {
+                // TODO: Maybe add support for MonoModLoader as well?
+                var patchesDir = Path.Combine(dir, "patchers");
+                var pluginsDir = Path.Combine(dir, "plugins");
+
+                var patchesExists = Directory.Exists(patchesDir);
+                var pluginsExists = Directory.Exists(pluginsDir);
+
+                if (!patchesExists && !pluginsExists)
+                    return;
+                Mods.Add(new Mod
+                {
+                    PluginsPath = pluginsExists ? pluginsDir : null,
+                    PreloaderPatchesPath = patchesExists ? patchesDir : null,
+                    ModDir = dir
+                });
+            }
+
         }
     }
 }
